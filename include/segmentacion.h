@@ -15,7 +15,8 @@ struct segment_table {
     int num_segments;               // Cantidad de segmentos 
 };
 
-struct segment_table* init_segment_table(int num_segs);
+// Se actualiza la firma para aceptar los límites como un string
+struct segment_table* init_segment_table(int num_segs, const char *limits_str);
 int traducir_segmento(struct segment_table *table, int seg_id, uint64_t offset, uint64_t *pa);
 void free_segment_table(struct segment_table *table);
 

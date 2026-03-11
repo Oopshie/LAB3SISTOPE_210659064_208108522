@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -std=c11 -pthread -Wall -Wextra -Iinclude
-SRC = src/simulator.c src/segmentacion.c
+SRC = src/simulator.c src/segmentacion.c src/workloads.c src/tlb.c src/frame_allocator.c src/paginacion.c
 OBJ = $(SRC:.c=.o)
 TARGET = simulator
 
