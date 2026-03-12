@@ -20,6 +20,7 @@ long long g_total_segfaults = 0;
 long long g_total_page_faults = 0;
 long long g_total_tlb_hits = 0;
 long long g_total_tlb_misses = 0;
+long long g_total_evictions = 0; // Para contar evicciones en paginación
 
 // Variables globales para paginación (para invalidación entre hilos)
 page_table_t* g_page_tables[MAX_THREADS];
@@ -69,7 +70,7 @@ void* segmentation_thread_main(void *arg) {
     if (!config->unsafe) pthread_mutex_unlock(&g_stats_mutex);
 
     if (config->stats) {
-        printf("Thread %d Métricas: { Traducciones OK: %lld, Segfaults: %lld }\n",
+        printf("Thread %d Metricas: { Traducciones OK: %lld, Segfaults: %lld }\n",
                data->thread_id, translations_ok, segfaults);
     }
 
@@ -85,12 +86,12 @@ void run_segmentation_simulation(config_t *config) {
     g_total_segfaults = 0;
 
     if (config->stats) {
-        printf("-> Iniciando simulación en modo: SEGMENTACIÓN\n");
+        printf("-> Iniciando simulacion en modo: SEGMENTACION\n");
         printf("============================================================\n");
-        printf("Configuración: %d hilos, %d ops/hilo, workload=%s, seed=%d\n",
+        printf("Configuracion: %d hilos, %d ops/hilo, workload=%s, seed=%d\n",
                config->num_threads, config->ops_per_thread,
                config->workload == WORKLOAD_UNIFORM ? "uniform" : "80-20", config->seed);
-        printf("============================================================\n");
+        printf("============================================================\n\n");
     }
 
     struct timespec start, end;
@@ -110,14 +111,14 @@ void run_segmentation_simulation(config_t *config) {
     if (config->stats) {
         long long total_ops = g_total_translations_ok + g_total_segfaults;
         printf("============================================================\n");
-        printf("Métricas Globales (Segmentación):\n");
+        printf("Metricas Globales (Segmentacion):\n");
         printf("  - Traducciones OK: %lld\n", g_total_translations_ok);
         printf("  - Segfaults: %lld\n", g_total_segfaults);
         printf("------------------------------------------------------------\n");
         printf("Tiempo total: %.2f segundos\n", time_taken);
         if (time_taken > 0) printf("Throughput: %.2f ops/seg\n", total_ops / time_taken);
-        if (total_ops > 0) printf("Tiempo promedio por traducción: %.2f ns\n", (time_taken * 1e9) / total_ops);
-        printf("============================================================\n");
+        if (total_ops > 0) printf("Tiempo promedio por traduccion: %.2f ns\n", (time_taken * 1e9) / total_ops);
+        printf("============================================================\n\n");
     }
     pthread_mutex_destroy(&g_stats_mutex);
 }
@@ -201,11 +202,11 @@ void run_pagination_simulation(config_t *config) {
     frame_allocator_init(config->num_frames, config->unsafe);
 
     if (config->stats) {
-        printf("-> Iniciando simulación en modo: PAGINACIÓN\n");
+        printf("-> Iniciando simulacion en modo: PAGINACION\n");
         printf("============================================================\n");
-        printf("Configuración: %d hilos, %d ops/hilo, %d frames, %d páginas/hilo, tlb=%d\n",
+        printf("Configuracion: %d hilos, %d ops/hilo, %d frames, %d paginas/hilo, tlb=%d\n",
                config->num_threads, config->ops_per_thread, config->num_frames, config->num_pages, config->tlb_size);
-        printf("============================================================\n");
+        printf("============================================================\n\n");
     }
 
     struct timespec start, end;
@@ -229,7 +230,7 @@ void run_pagination_simulation(config_t *config) {
         double hit_rate = total_tlb_lookups > 0 ? (double)g_total_tlb_hits / total_tlb_lookups * 100.0 : 0.0;
         
         printf("============================================================\n");
-        printf("Métricas Globales (Paginación):\n");
+        printf("Metricas Globales (Paginacion):\n");
         printf("  - TLB Hits: %lld\n", g_total_tlb_hits);
         printf("  - TLB Misses: %lld\n", g_total_tlb_misses);
         printf("  - TLB Hit Rate: %.2f%%\n", hit_rate);
@@ -237,7 +238,7 @@ void run_pagination_simulation(config_t *config) {
         printf("------------------------------------------------------------\n");
         printf("Tiempo total: %.2f segundos\n", time_taken);
         if (time_taken > 0) printf("Throughput: %.2f ops/seg\n", (double)config->num_threads * config->ops_per_thread / time_taken);
-        printf("============================================================\n");
+        printf("============================================================\n\n");
     }
     
     pthread_mutex_destroy(&g_stats_mutex);
@@ -341,14 +342,25 @@ int main(int argc, char *argv[]) {
     srand(config.seed);
     init_workloads(&config);
 
+    struct timespec global_start, global_end;
+    clock_gettime(CLOCK_MONOTONIC, &global_start);
+
     if (config.mode == MODE_SEGMENTATION) {
         run_segmentation_simulation(&config);
     } else if (config.mode == MODE_PAGINATION) {
         run_pagination_simulation(&config);
     } else {
-        fprintf(stderr, "Error: El modo de operación es obligatorio.\n");
+        fprintf(stderr, "Error: El modo de operacion es obligatorio.\n");
         fprintf(stderr, "Uso: %s --mode <seg|page> [opciones]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
+
+    clock_gettime(CLOCK_MONOTONIC, &global_end);
+    double total_runtime = (global_end.tv_sec - global_start.tv_sec) + 
+                           (global_end.tv_nsec - global_start.tv_nsec) / 1e9;
+
+    save_summary(&config, total_runtime);
+
     return 0;
+
 }

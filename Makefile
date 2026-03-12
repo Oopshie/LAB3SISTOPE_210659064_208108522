@@ -40,8 +40,10 @@ reproduce: all
 	@echo "--- Ejecutando Experimento 3: Thrashing ---"
 	# 3.1 Un hilo
 	./$(TARGET) --mode page --threads 1 --workload uniform --ops-per-thread 10000 --pages 64 --frames 8 --page-size 4096 --tlb-size 16 --seed 300 --stats 
+	mv out/summary.json out/exp3_1_thread_summary.json 
 	# 3.2 Ocho hilos (Thrashing)
 	./$(TARGET) --mode page --threads 8 --workload uniform --ops-per-thread 10000 --pages 64 --frames 8 --page-size 4096 --tlb-size 16 --seed 300 --stats 
+	mv out/summary.json out/exp3_8_threads_summary.json 
 
 	@echo "--- Proceso finalizado. Archivos generados en out/ ---"
 
