@@ -244,6 +244,49 @@ void run_pagination_simulation(config_t *config) {
     pthread_mutex_destroy(&g_page_tables_mutex);
 }
 
+void save_summary(config_t *config, double runtime_sec) {
+    FILE *fp = fopen("out/summary.json", "w");
+    if (!fp) {
+        perror("Error al crear out/summary.json");
+        return;
+    }
+
+    long long total_ops = (long long)config->num_threads * config->ops_per_thread;
+    long long total_tlb_lookups = g_total_tlb_hits + g_total_tlb_misses;
+    double hit_rate = total_tlb_lookups > 0 ? (double)g_total_tlb_hits / total_tlb_lookups : 0.0;
+    double throughput = runtime_sec > 0 ? (double)total_ops / runtime_sec : 0.0;
+    double avg_time_ns = total_ops > 0 ? (runtime_sec * 1e9) / total_ops : 0.0;
+
+    fprintf(fp, "{\n");
+    fprintf(fp, "  \"mode\": \"%s\",\n", config->mode == MODE_SEGMENTATION ? "seg" : "page");
+    fprintf(fp, "  \"config\": {\n");
+    fprintf(fp, "    \"threads\": %d,\n", config->num_threads);
+    fprintf(fp, "    \"ops_per_thread\": %d,\n", config->ops_per_thread);
+    fprintf(fp, "    \"workload\": \"%s\",\n", config->workload == WORKLOAD_80_20 ? "80-20" : "uniform");
+    fprintf(fp, "    \"seed\": %d,\n", config->seed);
+    fprintf(fp, "    \"unsafe\": %s,\n", config->unsafe ? "true" : "false");
+    fprintf(fp, "    \"pages\": %d,\n", config->num_pages);
+    fprintf(fp, "    \"frames\": %d,\n", config->num_frames);
+    fprintf(fp, "    \"page_size\": %d,\n", config->page_size);
+    fprintf(fp, "    \"tlb_size\": %d,\n", config->tlb_size);
+    fprintf(fp, "    \"tlb_policy\": \"fifo\",\n");
+    fprintf(fp, "    \"evict_policy\": \"fifo\"\n");
+    fprintf(fp, "  },\n");
+    fprintf(fp, "  \"metrics\": {\n");
+    fprintf(fp, "    \"tlb_hits\": %lld,\n", g_total_tlb_hits);
+    fprintf(fp, "    \"tlb_misses\": %lld,\n", g_total_tlb_misses);
+    fprintf(fp, "    \"hit_rate\": %.3f,\n", hit_rate);
+    fprintf(fp, "    \"page_faults\": %lld,\n", g_total_page_faults);
+    fprintf(fp, "    \"evictions\": %lld,\n", g_total_page_faults > (long long)config->num_frames ? g_total_page_faults - config->num_frames : 0);
+    fprintf(fp, "    \"avg_translation_time_ns\": %.2f,\n", avg_time_ns);
+    fprintf(fp, "    \"throughput_ops_sec\": %.2f\n", throughput);
+    fprintf(fp, "  },\n");
+    fprintf(fp, "  \"runtime_sec\": %.3f\n", runtime_sec);
+    fprintf(fp, "}\n");
+
+    fclose(fp);
+    printf("-> Resumen guardado en out/summary.json\n");
+}
 
 // --- Punto de Entrada Principal ---
 

@@ -50,3 +50,17 @@ void update_tlb(struct tlb *tlb_ptr, int tag, uint64_t frame_number) {
     // Movemos el índice al siguiente (circularmente)
     tlb_ptr->next_replace_idx = (idx + 1) % tlb_ptr->size;
 }
+
+// Invalida una entrada específica en la TLB (Obligatorio tras una evicción)
+void tlb_invalidate(struct tlb *tlb_ptr, int tag) {
+    // SEGURO: Si la TLB está deshabilitada, no hay nada que invalidar
+    if (tlb_ptr->size == 0 || tlb_ptr->entries == NULL) return;
+
+    for (int i = 0; i < tlb_ptr->size; i++) {
+        if (tlb_ptr->entries[i].valid && tlb_ptr->entries[i].tag == tag) {
+            tlb_ptr->entries[i].valid = false;
+            // No hacemos break porque un tag podría estar repetido si no se maneja bien,
+            // aunque en una TLB ideal solo hay uno.
+        }
+    }
+}
