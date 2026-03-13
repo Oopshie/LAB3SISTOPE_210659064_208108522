@@ -28,6 +28,12 @@ static int g_unsafe_mode;
 
 // --- Implementación de las Funciones ---
 
+/*  Descripción: Inicializa las estructuras para la gestión de memoria fisica compartida. Reserva memoria dinámica para la tabla de marcos y la cola FIFO. 
+                Si unsafe_mode es 1, no se inicializa el mutex para permitir acceso sin sincronización (modo inseguro).
+    Entradas: int num_frames: número total de frames disponibles en la memoria fisica.
+              int unsafe_mode: bandera para indicar si el modo inseguro es habilitado (1) o no (0).
+    Salida: void
+*/
 void frame_allocator_init(int num_frames, int unsafe_mode) {
     g_num_frames = num_frames;
     g_unsafe_mode = unsafe_mode;
@@ -52,6 +58,12 @@ void frame_allocator_init(int num_frames, int unsafe_mode) {
     }
 }
 
+/*  Descripción: Realiza la limpieza del sistema de gestión de marcos liberando la memoria dinámica asignada.
+                Ademas, destruye el mutex si se operaba en modo SAFE.
+    Entradas: ninguna
+    Salida: void
+*/
+
 void frame_allocator_destroy() {
     free(g_frame_table);
     free(g_fifo_queue);
@@ -60,6 +72,13 @@ void frame_allocator_destroy() {
     }
 }
 
+/*  Descripción: Busca un marco físico disponible para su asignación. En caso de que no existan marcos libres, 
+                implementa la política de desalojo FIFO para seleccionar un marco victima, extrayendo su información
+                para que el sistema pueda invalidar las traducciones correspondientes en las tablas de páginas y TLB.
+    Entradas: int *victim_vpn: puntero donde se almacenara el VPN de la página que será expulsada de memoria
+              int *victim_thread_id: Puntero donde se almacenará el ID del hilo dueño de la página desalojada.
+    Salida: int índice del marco físico asignado o -1 en caso de error crítico.
+*/
 int allocate_frame(int *victim_vpn, int *victim_thread_id) {
     if (!g_unsafe_mode) pthread_mutex_lock(&g_allocator_mutex);
 
@@ -97,6 +116,14 @@ int allocate_frame(int *victim_vpn, int *victim_thread_id) {
     return victim_frame;
 }
 
+/* Descripción: Registra la asociación de una página virtual específica con un marco físico en la tabla de metadatos
+                global. Inserta el número del marco en la cola FIFO para registrar su tiempo de carga y asegurar que 
+                sea considerado en futuros procesos de desalojo.
+    Entradas: int frame_number: número del marco físico que se está asignando.
+              int vpn: número de página virtual que se está mapeando al marco.
+              int thread_id: ID del hilo al que pertenece la página que se está mapeando.
+    Salida: void
+*/
 void frame_allocator_map_frame(int frame_number, int vpn, int thread_id) {
     if (frame_number < 0 || frame_number >= g_num_frames) return;
 

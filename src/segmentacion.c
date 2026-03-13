@@ -4,10 +4,13 @@
 #include <stdio.h>
 #include <string.h>
 
-/**
- * Inicializa la tabla de segmentos para un hilo.
- * Parsea los límites desde un string y asigna las bases de forma contigua.
- */
+
+/*  Descripción: Inicializa la tabla de segmentos para un hilo.
+                 Parsea los límites desde un string y asigna las bases de forma contigua.
+    Entradas: num_segments: Cantidad de segmentos a crear.
+              limits_str: String con los límites de cada segmento separados por comas (ej: "4096,8192,2048").
+    Salida: puntero a la estructura segment_table inicializada o NULL si falla la reserva de memoria.
+*/
 struct segment_table* init_segment_table(int num_segments, const char *limits_str) {
     struct segment_table *table = (struct segment_table*)malloc(sizeof(struct segment_table));
     if (!table) return NULL;
@@ -42,10 +45,14 @@ struct segment_table* init_segment_table(int num_segments, const char *limits_st
     return table;
 }
 
-/**
- * Traduce una dirección virtual (seg_id, offset) a física (PA).
- * Sigue la fórmula: PA = base[seg_id] + offset.
- */
+/*  Descripción: Traduce una dirección virtual (seg_id, offset) a física (PA).
+                 Sigue la fórmula: PA = base[seg_id] + offset.
+    Entradas: table: Puntero a la tabla de segmentos del hilo.
+              seg_id: Índice del segmento solicitado.
+              pa: Puntero donde se almacenará la dirección física resultante.
+    Salida: 1 si la traducción es exitosa, 0 si ocurre una violación de segmento (Segfault).
+*/
+
 int traducir_segmento(struct segment_table *table, int seg_id, uint64_t offset, uint64_t *pa) {
     // 1. Validar que el ID del segmento exista en la tabla
     if (seg_id < 0 || seg_id >= table->num_segments) {
@@ -66,9 +73,11 @@ int traducir_segmento(struct segment_table *table, int seg_id, uint64_t offset, 
     return 1; // Éxito: traducción correcta
 }
 
-/**
- * Libera la memoria de la tabla cuando el hilo termina. 
- */
+
+/*  Descripción: Libera la memoria de la tabla cuando el hilo termina. 
+    Entradas: table: Puntero a la tabla de segmentos a liberar.
+    Salida: void
+*/
 void free_segment_table(struct segment_table *table) {
     if (table) {
         free(table->segments);

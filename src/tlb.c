@@ -1,7 +1,11 @@
 #include <stdlib.h>
 #include "tlb.h"
 
-// Inicializa la TLB con un tamaño dinámico
+/*  Descripción: Inicializa la TLB con un tamaño dinámico
+    Entradas: tlb_ptr: Puntero a la estructura tlb que se va a inicializar.
+              size: Cantidad de entradas que tendrá el caché (puede ser 0 para deshabilitarlo).
+    Salida: void.
+ */
 void init_tlb(struct tlb *tlb_ptr, int size) {
     tlb_ptr->size = size;
     tlb_ptr->next_replace_idx = 0;
@@ -15,14 +19,23 @@ void init_tlb(struct tlb *tlb_ptr, int size) {
     }
 }
 
-// Libera la memoria de las entradas de la TLB
+/*  Descripción: Libera la memoria dinámica utilizada por las entradas de la TLB.
+    Entradas: tlb_ptr: Puntero a la estructura tlb a destruir.
+    Salida: void.
+ */
 void destroy_tlb(struct tlb *tlb_ptr) {
     if (tlb_ptr && tlb_ptr->entries) {
         free(tlb_ptr->entries);
     }
 }
 
-// Busca un VPN (tag) en la TLB
+/*  Descripción: Busca una traducción en la TLB para un número de página virtual (VPN) dado.
+                Si encuentra una entrada válida que coincida con el tag, se considera un "TLB Hit".
+    Entradas: tlb_ptr: Puntero a la TLB del hilo actual.
+              tag: Número de página virtual (VPN) que se desea buscar.
+              frame_number: Puntero donde se escribirá el número de marco si hay un acierto.
+    Salida: true si es un TLB Hit, false si es un TLB Miss.
+*/
 bool search_tlb(struct tlb *tlb_ptr, int tag, uint64_t *frame_number) {
     if (tlb_ptr->size == 0) return false;
 
@@ -36,7 +49,14 @@ bool search_tlb(struct tlb *tlb_ptr, int tag, uint64_t *frame_number) {
     return false; // TLB Miss
 }
 
-// Actualiza la TLB con una nueva traducción (Algoritmo FIFO)
+/* Descripción: Inserta o actualiza una traducción en la TLB utilizando el algoritmo 
+                de reemplazo FIFO (First-In, First-Out). Cuando el caché está lleno, sobrescribe 
+                la entrada más antigua según el índice circular.
+    Entradas: tlb_ptr: Puntero a la TLB del hilo.
+              tag: Número de página virtual (VPN) a insertar.
+              frame_number: Número de marco físico asociado a la página.
+    Salida: void.
+ */
 void update_tlb(struct tlb *tlb_ptr, int tag, uint64_t frame_number) {
     if (tlb_ptr->size == 0) return;
 
@@ -51,6 +71,11 @@ void update_tlb(struct tlb *tlb_ptr, int tag, uint64_t frame_number) {
     tlb_ptr->next_replace_idx = (idx + 1) % tlb_ptr->size;
 }
 
+/*  Descripción: Invalida una entrada específica en la TLB (Obligatorio tras una evicción)
+    Entradas: tlb_ptr: Puntero a la TLB donde se realizará la invalidación.
+              tag: Número de página virtual (VPN) que debe marcarse como inválido.
+    Salida: void.
+*/
 // Invalida una entrada específica en la TLB (Obligatorio tras una evicción)
 void tlb_invalidate(struct tlb *tlb_ptr, int tag) {
     // SEGURO: Si la TLB está deshabilitada, no hay nada que invalidar

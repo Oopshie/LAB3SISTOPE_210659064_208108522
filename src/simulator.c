@@ -42,6 +42,12 @@ typedef struct {
     config_t *config;
 } seg_thread_data_t;
 
+/* Descripción: Función principal de ejecución para los hilos en modo segmentación.
+                Cada hilo inicializa su propia tabla de segmentos, genera direcciones virtuales 
+                según el workload y las traduce a físicas, contabilizando éxitos y fallos (segfaults).
+    Entradas: arg: Puntero a estructura seg_thread_data_t que contiene el ID del hilo y la configuración.
+    Salida: NULL (vía pthread_exit).
+ */
 void* segmentation_thread_main(void *arg) {
     seg_thread_data_t *data = (seg_thread_data_t *)arg;
     config_t *config = data->config;
@@ -79,6 +85,12 @@ void* segmentation_thread_main(void *arg) {
     pthread_exit(NULL);
 }
 
+/*  Descripción: Orquesta la simulación completa en modo segmentación.
+                Inicializa mutex, mide el tiempo de ejecución, crea los hilos solicitados, 
+                espera a que terminen (join) y reporta las métricas globales por consola.
+    Entradas: config: Estructura con los parámetros de la simulación (hilos, operaciones, etc.).
+    Salida: void.
+ */
 void run_segmentation_simulation(config_t *config) {
     pthread_t threads[config->num_threads];
     pthread_mutex_init(&g_stats_mutex, NULL);
@@ -131,6 +143,12 @@ typedef struct {
     config_t *config;
 } pag_thread_data_t;
 
+/*  Descripción: Función principal de ejecución para los hilos en modo paginación.
+                Gestiona la jerarquía de memoria: busca en la TLB, maneja fallos de página llamando 
+                al sistema de traducción y actualiza el caché (TLB). Contabiliza hits, misses y faults.
+    Entradas: arg: Puntero a pag_thread_data_t con la información de contexto del hilo.
+    Salida: NULL (vía pthread_exit).
+ */
 void* pagination_thread_main(void* arg) {
     pag_thread_data_t *data = (pag_thread_data_t*)arg;
     config_t *config = data->config;
@@ -184,7 +202,13 @@ void* pagination_thread_main(void* arg) {
     pthread_exit(NULL);
 }
 
-
+/*  Descripción: Orquesta la simulación completa en modo paginación.
+                Configura el asignador de marcos (frame allocator), inicializa los mutex de 
+                sincronización global, lanza los hilos y al finalizar calcula las métricas 
+                de rendimiento como el Hit Rate y el Throughput.
+    Entradas: config: Estructura de configuración global del simulador.
+    Salida: void.
+ */
 void run_pagination_simulation(config_t *config) {
     if (config->num_threads > MAX_THREADS) {
         fprintf(stderr, "Error: El número de hilos excede el máximo de %d\n", MAX_THREADS);
@@ -245,6 +269,13 @@ void run_pagination_simulation(config_t *config) {
     pthread_mutex_destroy(&g_page_tables_mutex);
 }
 
+/*  Descripción: Genera un reporte final en formato JSON compatible con la rúbrica.
+                Captura toda la configuración y las métricas acumuladas durante la ejecución 
+                para guardarlas en "out/summary.json", permitiendo la reproducibilidad del experimento.
+    Entradas: config: Configuración utilizada en la simulación.
+               runtime_sec: Tiempo total de ejecución medido en segundos.
+    Salida: void.
+ */
 void save_summary(config_t *config, double runtime_sec) {
     FILE *fp = fopen("out/summary.json", "w");
     if (!fp) {
@@ -291,6 +322,14 @@ void save_summary(config_t *config, double runtime_sec) {
 
 // --- Punto de Entrada Principal ---
 
+/*  Descripción: Punto de entrada del programa. 
+                Parsea los argumentos de la línea de comandos (getopt_long), inicializa los 
+                workloads y lanza la simulación correspondiente (segmentación o paginación).
+                Finalmente, mide el tiempo total y activa la generación del resumen JSON.
+    Entradas: argc: Cantidad de argumentos.
+              argv: Vector de cadenas de texto con los argumentos.
+    Salida: 0 si la ejecución fue exitosa.
+ */
 int main(int argc, char *argv[]) {
     config_t config;
     config.mode = -1;
